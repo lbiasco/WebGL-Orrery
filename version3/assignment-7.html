@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+// Attribute variables
+attribute vec4 a_vPosition;
+attribute vec4 a_vNormal;
+attribute vec2 a_textureCoord;
+
+// Varying variables
+varying vec4 v_fColor;
+varying vec2 v_textureCoord;
+
+// Uniform variables - Matrices
+uniform mat4 u_mvMatrix;
+uniform mat3 u_nMatrix;
+uniform mat4 u_projMatrix;
+
+// Uniform variables - Vectors and scalars
+uniform vec4 u_lightPosition;
+uniform vec4 u_lightColor;
+uniform float u_ambient, u_diffuse, u_specular;
+uniform float u_shininess;
+uniform bool u_useLighting;
+
+void
+main()
+{
+    if(u_useLighting)
+    {
+        vec3 pos = (u_mvMatrix * a_vPosition).xyz; // Position of the given fragment (transformed by the view matrix)
+
+        vec3 L; // Light vector
+
+        // Check for directional or point light
+        if (u_lightPosition.w == 0.0)
+          // Directional light
+          // for directional light, could assume in either object or eye space
+          L = normalize( u_lightPosition.xyz );
+        else
+        {
+          // Point light
+          // transform light position from object space to eye space
+          L = normalize( u_lightPosition.xyz - pos );
+        }
+
+        vec3 E = -normalize( pos ); // Eye vector (with view set at (0,0,0), same as position of viewed point)
+
+        vec3 H = normalize( L + E ); // Halfway vector (halfway between light and eye vectors)
+
+        vec3 N = normalize( u_nMatrix * a_vNormal.xyz ); // Normal vector: transform vertex normal into eye coordinates
+
+        vec3 R = normalize(-reflect(L, N)); // Reflection vector: reflection of light across normal vector
+
+        float ambient = u_ambient; // Ambient light components (set in .js)
+
+        float Kd = max( dot(L, N), 0.0 ); // Amount of light aligning with the surface of the object -> how much diffuse light is given
+        float  diffuse = Kd*u_diffuse; // Diffuse light components (set in .js)
+
+        float Ks = pow( max(dot(E, R), 0.0), u_shininess ); // Amount of reflected light aligning with the view eye -> how much reflected light seen
+        float  specular = Ks * u_specular; // Specular light components (set in .js)
+
+        // If there is no diffuse light (i.e. the light is not on the viewable side of the face), cancel the specular light
+        if( dot(L, N) < 0.0 ) {
+            specular = 0.0;
+        }
+
+        v_fColor = u_lightColor * (ambient + diffuse + specular); // Add all ambient, diffuse, and specular light, and multiply it by the general light color)
+        v_fColor.a = 1.0; // Set light alpha component to 1.0 to be visible
+    } else
+    {
+        v_fColor = vec4(1.0, 1.0, 1.0, 1.0);
+    }
+
+    gl_Position = u_projMatrix * u_mvMatrix * a_vPosition; // Transform the VBO position with the view and projection matrices
+
+    v_textureCoord = a_textureCoord;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+// Varying variables
+varying vec4 v_fColor;
+varying vec2 v_textureCoord;
+
+// Uniform variables
+uniform vec4 u_color;
+uniform sampler2D u_textureSampler;
+uniform bool u_useTexturing;
+
+void
+main()
+{
+    if(u_useTexturing)
+    {
+        gl_FragColor = v_fColor * texture2D(u_textureSampler, vec2(v_textureCoord.s, v_textureCoord.t));
+    } else
+    {
+        gl_FragColor = v_fColor * u_color;
+    }
+}
+</script>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/MV.js"></script>
+<script type="text/javascript" src="trackball.js"></script>
+<script type="text/javascript" src="assignment-7.js"></script>
+</head>
+
+<body>
+<canvas id="gl-canvas" width="1024" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+
+</br></br>
+<!--- The statistics are printed here. --->
+<p id="printDay"></p>
+
+
+<!--- The interactive components are placed here --->
+<form>
+    <input type="radio" name="function" id="orbon" checked>Orbit On
+    <input type="radio" name="function" id="orboff">Orbit Off
+</form>
+<form>
+    <input type="radio" name="function" id="dayon" checked>Day On
+    <input type="radio" name="function" id="datoff">Day Off
+</form>
+<form>
+    <input type="radio" name="function" id="animon" checked>Animation On
+    <input type="radio" name="function" id="animoff">Animation Off
+</form>
+<button id="incDPF">Inc DPF</button>
+<button id="decDPF">Dec DPF</button>
+</br></br>
+Light Color
+</br>
+<div>
+Red......0.0 <input id="red" type="range"
+ min="0" max="1" step="0.1" value="1.0" />
+ 1.0
+</div>
+<div>
+Blue.....0.0 <input id="blue" type="range"
+ min="0" max="1" step="0.1" value="1.0" />
+ 1.0
+</div>
+<div>
+Green...0.0 <input id="green" type="range"
+ min="0" max="1" step="0.1" value="1.0" />
+ 1.0
+</div>
+<button id="test">TEST</button>
+
+</body>
+</html>
